@@ -1,17 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-var cors = require('cors');
+const cors = require('cors');
 
 const articlesSchema = new mongoose.Schema({
-    title: String,
-    article: String,
-    dateCreated:  Date}
-, {collection: 'test'});
+    metaData: {
+        articleImage: String,
+        author: String,
+        title: String,
+        date: Date
+    },
+    data: {
+        header: String,
+        description: Array,
+        image: String
+    }
+}, {collection: 'articles'});
 
 // connect to a collection
-
-const articles = mongoose.model('test', articlesSchema);
+const articles = mongoose.model('articles', articlesSchema);
 router.use(cors());
 
 router.get('/articles', (req, res) => {
@@ -19,13 +26,11 @@ router.get('/articles', (req, res) => {
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     articles.find({}, (err, data) => {
         if(err) {
-            res.status(404).send('Data unavailable');
+            res.status(204).send('Data unavailable');
         } else {
-            console.log(">>>> ", data);
             res.send(data);
         }        
-    });
-    
+    });   
 });
 
 module.exports = router;
