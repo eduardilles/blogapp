@@ -22,13 +22,18 @@ const articles = mongoose.model('articles', articlesSchema);
 router.use(cors());
 
 router.get('/articles', (req, res) => {
+    const page = req.query.page;
+    const limit = req.query.limit;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
     res.setHeader("Access-Control-Allow-Origin", '*');
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     articles.find({}, (err, data) => {
         if(err) {
             res.status(204).send('Data unavailable');
         } else {
-            res.send(data);
+            const result = data.slice(startIndex, endIndex);
+            res.send(result);
         }        
     });   
 });
