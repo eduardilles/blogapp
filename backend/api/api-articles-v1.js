@@ -22,8 +22,8 @@ const articles = mongoose.model('articles', articlesSchema);
 router.use(cors());
 
 router.get('/articles', (req, res) => {
-    const page = req.query.page;
-    const limit = req.query.limit;
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     res.setHeader("Access-Control-Allow-Origin", '*');
@@ -32,8 +32,21 @@ router.get('/articles', (req, res) => {
         if(err) {
             res.status(204).send('Data unavailable');
         } else {
-            const result = data.slice(startIndex, endIndex);
-            res.send(result);
+            const results = {};
+            if(endIndex < data.length) {
+                results.next = {
+                    page: page + 1,
+                    limit: limit
+                };
+            }
+            if( startIndex > 0) {
+                results.prev = {
+                    page: page - 1,
+                    limit: limit
+                };
+            }
+            results.result = data.slice(startIndex, endIndex);
+            res.send(results);
         }        
     });   
 });
