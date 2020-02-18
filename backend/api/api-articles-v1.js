@@ -17,11 +17,57 @@ const articlesSchema = new mongoose.Schema({
     }
 }, {collection: 'articles'});
 
-// connect to a collection
 const articles = mongoose.model('articles', articlesSchema);
 
 router.use(cors());
 router.use(express.json());
+
+function checkValidation(element) {
+
+    if(element && typeof(element) != Boolean && element != 0) {
+        return true;
+    }
+
+    return false;
+}
+
+function validateRequest(request, response, responseSchema) {
+    let errors = [];
+
+    responseSchema.forEach(element => {
+        if(checkValidation(request[element.propName]) && element.required) {
+            if(element.type === 'object' && element.properties) {
+                element.properties.forEach((val) => {
+                    let elementPropagation = val;
+                    let validation = !request[element.propName][elementPropagation.propName] && elementPropagation.required === true;
+
+                    while(elementPropagation != null) {
+                        if(validation) {
+                            errors.push(`Missing required property: ${elementPropagation.propName}`);
+                        } else if(checkValidation(request[element.propName][elementPropagation.propName]) 
+                                  && elementPropagation.type != typeof(request[element.propName][elementPropagation.propName])) {
+                            errors.push(`${elementPropagation.propName} Incorrect property data type! Should be ${elementPropagation.type} instead of ${typeof(request[element.propName][elementPropagation.propName])}`);
+                        }
+                        
+                        if(elementPropagation.properties) {
+                            elementPropagation = elementPropagation.properties;
+                        } else {
+                            elementPropagation = null;
+                        }
+                    }
+                });
+            }
+        }
+    });
+
+    
+    if(errors.length <= 0) {
+        response.json(request);
+    } else {
+        response.status(400);
+        response.json(errors);
+    }
+}
 
 router.get('/articles', (req, res) => {
     const page = parseInt(req.query.page);
@@ -54,7 +100,7 @@ router.get('/articles', (req, res) => {
     });   
 }).post('/articles', (req, res) => {
 
-    var requiredValids = [
+    const requiredValids = [
         {
             propName: 'metaData',
             required: true,
@@ -90,7 +136,7 @@ router.get('/articles', (req, res) => {
                 {
                     propName: 'description',
                     type: 'object',
-                    required: true
+                    required: true,
                 },
                 {
                     propName: 'header',
@@ -99,45 +145,13 @@ router.get('/articles', (req, res) => {
                 },
                 {
                     propName: 'image',
-                    type: 'string',
-                    required: false
+                    type: 'string'
                 },
             ]
         }
     ];
-
-    function validateRequest(request, required) {
-        let errors = [];
-
-        required.forEach(element => {
-            if(request[element.propName] && 
-                typeof(request[element.propName]) != Boolean && 
-                request[element.propName] != 0) {
-                if(element.type == 'object') {
-                    element.properties.forEach((val) => {
-                        if(request[element.propName][val.propName] && typeof(request[element.propName][val.propName]) != Boolean 
-                            && request[element.propName][val.propName] != 0 && val.type == typeof(request[element.propName][val.propName])) {
-                            console.log('valid data');
-                        } else if(!request[element.propName][val.propName] && val.required === true) {
-                            errors.push(`Missing required property: ${val.propName}`);
-                        } else if(request[element.propName][val.propName] && val.type != typeof(request[element.propName][val.propName])) {
-                            errors.push(`${val.propName} Incorrect property data type! Should be ${val.type} instead of ${typeof(request[element.propName][val.propName])}`);
-                        }
-                    });
-                }
-            }
-        });
-        
-        if(errors.length <= 0) {
-            res.json(req.body);
-        } else if (errors.length > 0) {
-            res.status(400);
-            res.json(errors);
-        }
-    }
     
-    validateRequest(req.body, requiredValids);
-
+    validateRequest(req.body, res, requiredValids);
 });
 
 module.exports = router;
