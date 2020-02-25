@@ -22,52 +22,54 @@ const articles = mongoose.model('articles', articlesSchema);
 router.use(cors());
 router.use(express.json());
 
-function checkValidation(element) {
 
-    if(element && typeof(element) != Boolean && element != 0) {
-        return true;
-    }
-
-    return false;
+function keyExists(key, req) {
+    
+    return req.hasOwnProperty(key);
 }
 
-function validateRequest(request, response, responseSchema) {
-    let errors = [];
+function validateRequest(request, responseSchema) {
 
     responseSchema.forEach(element => {
-        if(checkValidation(request[element.propName]) && element.required) {
+        if(keyExists(element.propName, request) && typeof(request[element.propName]) === element.type) {
             if(element.type === 'object' && element.properties) {
                 element.properties.forEach((val) => {
-                    let elementPropagation = val;
-                    let validation = !request[element.propName][elementPropagation.propName] && elementPropagation.required === true;
+                    let currentObject = val;
+                    let validation = !request[element.propName][currentObject.propName] && currentObject.required === true;
 
-                    while(elementPropagation != null) {
-                        if(validation) {
-                            errors.push(`Missing required property: ${elementPropagation.propName}`);
-                        } else if(checkValidation(request[element.propName][elementPropagation.propName]) 
-                                  && elementPropagation.type != typeof(request[element.propName][elementPropagation.propName])) {
-                            errors.push(`${elementPropagation.propName} Incorrect property data type! Should be ${elementPropagation.type} instead of ${typeof(request[element.propName][elementPropagation.propName])}`);
-                        }
+                    if(validation) {
                         
-                        if(elementPropagation.properties) {
-                            elementPropagation = elementPropagation.properties;
-                        } else {
-                            elementPropagation = null;
+                        errors.push(`Missing required property: ${currentObject.propName}`);
+                    } else if(keyExists(currentObject.propName, request[element.propName])) {
+                        if(currentObject.type != typeof(request[element.propName][currentObject.propName])) {
+                            errors.push(`${currentObject.propName} Incorrect property data type! Should be ${currentObject.type} instead of ${typeof(request[element.propName][currentObject.propName])}`);
                         }
                     }
+
+                    currentObject = currentObject.properties;
+                    
+                    if(currentObject) {
+                        validateRequest(request[element.propName], element.properties);
+                    }
                 });
+            } else {
+                let validation = !keyExists(element.propName, request) && element.required === true;
+    
+                if(validation && element.type != 'object') {
+                    errors.push(`Missing required property: ${element.propName}`);
+                } else {
+                    if(element.type != typeof(request[element.propName])) {
+                        errors.push(`${element.propName}: Incorrect property data type! Should be ${element.type} instead of ${typeof(request[element.propName])}`);
+                    }
+                }
             }
-        }
+        } 
     });
 
-    
-    if(errors.length <= 0) {
-        response.json(request);
-    } else {
-        response.status(400);
-        response.json(errors);
-    }
+    return errors;
 }
+
+var errors = [];
 
 router.get('/articles', (req, res) => {
     const page = parseInt(req.query.page);
@@ -88,7 +90,7 @@ router.get('/articles', (req, res) => {
                     pageSize: pageSize
                 };
             }
-            if( startIndex > 0) {
+            if(startIndex > 0) {
                 results.prev = {
                     page: page - 1,
                     pageSize: pageSize
@@ -99,7 +101,7 @@ router.get('/articles', (req, res) => {
         }        
     });   
 }).post('/articles', (req, res) => {
-
+    errors = [];
     const requiredValids = [
         {
             propName: 'metaData',
@@ -126,17 +128,29 @@ router.get('/articles', (req, res) => {
                     type: 'string',
                     required: true
                 },
+                {
+                    propName: 'test1',
+                    type: 'object',
+                    required: true,
+                    properties: [
+                        {
+                            propName: 'test2',
+                            type: 'string',
+                            required: true
+                        }
+                    ]
+                }
             ]
         },
         {
             propName: 'data',
-            required: true,
+            required: false,
             type: 'object',
             properties: [
                 {
                     propName: 'description',
                     type: 'object',
-                    required: true,
+                    required: true
                 },
                 {
                     propName: 'header',
@@ -148,10 +162,21 @@ router.get('/articles', (req, res) => {
                     type: 'string'
                 },
             ]
-        }
+        },{
+            propName: 'test',
+            type: 'boolean',
+            required: true
+        },
     ];
     
-    validateRequest(req.body, res, requiredValids);
+    errors = validateRequest(req.body, requiredValids);
+
+    if(errors.length <= 0) {
+        res.json(req.body);
+    } else {
+        res.status(400);
+        res.json(errors);
+    }
 });
 
 module.exports = router;
