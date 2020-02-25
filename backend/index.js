@@ -23,5 +23,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Example app listening to ${port}`);
+    console.log(`Listening to ${port}`);
 });

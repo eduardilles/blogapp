@@ -3,7 +3,7 @@
 let articles = async () =>  {
     let article;
 
-    let data = fetch('http://localhost:3000/api/articles', {
+    let data = fetch('http://localhost:3000/api/articles?page=1&pageSize=10', {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -28,7 +28,7 @@ function createArticle(element) {
 
 // resolving the promise and get the expected data
 articles().then((data) => {
-    data.forEach(el => {
+    data.result.forEach(el => {
         createArticle(el);
     });
 });
