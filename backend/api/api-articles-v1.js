@@ -28,6 +28,10 @@ function keyExists(key, req) {
     return req.hasOwnProperty(key);
 }
 
+function checkArray(array) {
+    return array.every(function(currentValue){ return typeof currentValue === "string" });
+}
+
 function validateRequest(request, responseSchema) {
 
     responseSchema.forEach(element => {
@@ -38,13 +42,16 @@ function validateRequest(request, responseSchema) {
                     let validation = !request[element.propName][currentObject.propName] && currentObject.required === true;
 
                     if(validation) {
-                        
                         errors.push(`Missing required property: ${currentObject.propName}`);
                     } else if(keyExists(currentObject.propName, request[element.propName])) {
                         if(currentObject.type != typeof(request[element.propName][currentObject.propName])) {
                             errors.push(`${currentObject.propName} Incorrect property data type! Should be ${currentObject.type} instead of ${typeof(request[element.propName][currentObject.propName])}`);
                         }
+                        if(Array.isArray(request[element.propName][currentObject.propName]) && !checkArray(request[element.propName][currentObject.propName])) {
+                            errors.push(` ${currentObject.propName}: Incorrect property data type! Array should contain only strings!`);
+                        }
                     }
+
 
                     currentObject = currentObject.properties;
                     
@@ -54,7 +61,7 @@ function validateRequest(request, responseSchema) {
                 });
             } else {
                 let validation = !keyExists(element.propName, request) && element.required === true;
-    
+                
                 if(validation && element.type != 'object') {
                     errors.push(`Missing required property: ${element.propName}`);
                 } else {
